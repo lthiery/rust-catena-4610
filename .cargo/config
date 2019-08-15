@@ -1,0 +1,10 @@
+[build]
+target = "thumbv6m-none-eabi"
+
+[target.thumbv6m-none-eabi]
+rustflags = [
+    "-C", "link-arg=-Tlink.x",
+]
+# Uncomment the runner that you want to use.
+runner = "./flash.sh" # dfu-util
+#runner = "arm-none-eabi-gdb -tui -q -x openocd.gdb" # OpenOCD
