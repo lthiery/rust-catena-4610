@@ -35,6 +35,9 @@ fn main() -> ! {
     let mut rcc    = dp.RCC.freeze(rcc::Config::hsi16());
     let mut syscfg = SYSCFG::new(dp.SYSCFG_COMP, &mut rcc);
     let     gpioa  = dp.GPIOA.split(&mut rcc);
+    let     gpiob  = dp.GPIOB.split(&mut rcc);
+
+    let mut led = gpiob.pb2.into_push_pull_output();
 
     usb::init(&mut rcc, &mut syscfg, dp.CRS);
 
@@ -60,7 +63,14 @@ fn main() -> ! {
 
         // Ignore errors. For some reason, USB errors seem to be returned all
         // the time, even though everything works fine.
-        let _ = echo(&mut serial);
+        match echo(&mut serial) {
+            Ok(()) | Err(UsbError::WouldBlock) => (),
+
+            Err(error) => {
+                led.set_high().unwrap();
+                panic!("USB error: {:?}", error);
+            }
+        }
     }
 }
 
