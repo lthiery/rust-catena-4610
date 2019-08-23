@@ -5,10 +5,18 @@
 extern crate panic_halt;
 
 
+use cortex_m::{
+    interrupt,
+    peripheral::NVIC,
+};
 use cortex_m_rt::entry;
 use catena_4610::hal::{
     prelude::*,
-    pac,
+    pac::{
+        self,
+        Interrupt,
+    },
+    pwr::PWR,
     rcc,
     syscfg::SYSCFG,
     usb,
@@ -30,9 +38,12 @@ use usb_device::{
 
 #[entry]
 fn main() -> ! {
+    let cp = pac::CorePeripherals::take().unwrap();
     let dp = pac::Peripherals::take().unwrap();
 
+    let mut scb    = cp.SCB;
     let mut rcc    = dp.RCC.freeze(rcc::Config::hsi16());
+    let mut pwr    = PWR::new(dp.PWR, &mut rcc);
     let mut syscfg = SYSCFG::new(dp.SYSCFG_COMP, &mut rcc);
     let     gpioa  = dp.GPIOA.split(&mut rcc);
     let     gpiob  = dp.GPIOB.split(&mut rcc);
@@ -57,6 +68,14 @@ fn main() -> ! {
         .build();
 
     loop {
+        // Wait for USB interrupt
+        interrupt::free(|_| {
+            unsafe { NVIC::unmask(Interrupt::USB) };
+            pwr.sleep_mode(&mut scb).enter();
+            NVIC::mask(Interrupt::USB);
+            NVIC::unpend(Interrupt::USB);
+        });
+
         if !device.poll(&mut [&mut serial]) {
             continue;
         }
