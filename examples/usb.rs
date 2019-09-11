@@ -67,6 +67,12 @@ fn main() -> ! {
         .device_class(USB_CLASS_CDC)
         .build();
 
+    // If this program is run right after being uploaded via USB, the host
+    // computer will be confused and still think it's connected to the
+    // bootloader. Let's force it to recognize us, as to not require a manual
+    // reset after each upload.
+    device.bus().force_reenumeration(|| {});
+
     loop {
         // Wait for USB interrupt
         interrupt::free(|_| {
