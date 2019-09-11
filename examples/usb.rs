@@ -106,6 +106,13 @@ fn echo<Bus>(serial: &mut SerialPort<Bus>)
 
     let bytes_read = serial.read(&mut buffer)?;
 
+    // Switch all lower-case characters to upper-case
+    for b in &mut buffer {
+        if *b >= 0x61 && *b <= 0x7a {
+            *b -= 0x20;
+        }
+    }
+
     let mut offset = 0;
     while offset < bytes_read {
         let bytes_written = serial.write(&buffer[offset .. bytes_read])?;
