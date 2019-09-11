@@ -86,8 +86,6 @@ fn main() -> ! {
             continue;
         }
 
-        // Ignore errors. For some reason, USB errors seem to be returned all
-        // the time, even though everything works fine.
         match echo(&mut serial) {
             Ok(()) | Err(UsbError::WouldBlock) => (),
 
