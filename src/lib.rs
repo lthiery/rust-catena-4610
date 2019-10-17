@@ -9,5 +9,11 @@
 
 #![no_std]
 
+pub type DebugUsart = hal::serial::USART1;
 
 pub use stm32l0xx_hal as hal;
+
+pub use cmwx1zzabz::LongFiBindings;
+pub use cmwx1zzabz::RadioIRQ;
+pub use cmwx1zzabz::initialize_radio_irq;
+pub use cmwx1zzabz::TcxoEn;
