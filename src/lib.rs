@@ -6,12 +6,11 @@
 //! This Board Support Crate is in its very early stages. Documentation is
 //! sparse and features are basic. Pull requests welcome!
 
-
 #![no_std]
 
 pub type DebugUsart = hal::serial::USART1;
 
-pub use stm32l0xx_hal as hal;
+pub use cmwx1zzabz::hal as hal;
 
 pub use cmwx1zzabz::LongFiBindings;
 pub use cmwx1zzabz::RadioIRQ;
