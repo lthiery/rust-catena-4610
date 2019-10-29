@@ -10,9 +10,9 @@
 
 pub type DebugUsart = hal::serial::USART1;
 
-pub use cmwx1zzabz::hal as hal;
+pub use cmwx1zzabz::hal;
 
+pub use cmwx1zzabz::initialize_radio_irq;
 pub use cmwx1zzabz::LongFiBindings;
 pub use cmwx1zzabz::RadioIRQ;
-pub use cmwx1zzabz::initialize_radio_irq;
 pub use cmwx1zzabz::TcxoEn;

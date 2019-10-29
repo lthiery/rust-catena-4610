@@ -1,66 +1,37 @@
 #![no_main]
 #![no_std]
 
-
 extern crate panic_halt;
-
 
 use core::{
     cell::RefCell,
-    fmt::{
-        self,
-        Write as _,
-    },
+    fmt::{self, Write as _},
     str::from_utf8,
 };
 
-use cortex_m::{
-    interrupt::Mutex,
-    singleton,
-};
-use cortex_m_rt::entry;
 use catena_4610::hal::{
+    gpio::{gpiob::PB2, Output, PushPull},
+    pac::{self, interrupt, Interrupt, NVIC},
     prelude::*,
-    gpio::{
-        Output,
-        PushPull,
-        gpiob::PB2,
-    },
-    pac::{
-        self,
-        NVIC,
-        Interrupt,
-        interrupt,
-    },
     pwr::PWR,
     rcc,
     syscfg::SYSCFG,
     timer::Timer,
     usb,
 };
+use cortex_m::{interrupt::Mutex, singleton};
+use cortex_m_rt::entry;
 use nb::block;
-use stm32_usbd::{
-    UsbBus,
-    UsbBusType,
-};
-use usbd_serial::{
-    SerialPort,
-    USB_CLASS_CDC,
-};
+use stm32_usbd::{UsbBus, UsbBusType};
 use usb_device::{
-    UsbError,
     bus::UsbBusAllocator,
-    device::{
-        UsbDevice,
-        UsbDeviceBuilder,
-        UsbVidPid,
-    },
+    device::{UsbDevice, UsbDeviceBuilder, UsbVidPid},
+    UsbError,
 };
-
+use usbd_serial::{SerialPort, USB_CLASS_CDC};
 
 /// The timer that is used to regularly update the USB connection.
-static TIMER: Mutex<RefCell<Option<Timer<pac::TIM2>>>> =
-    Mutex::new(RefCell::new(None));
+static TIMER: Mutex<RefCell<Option<Timer<pac::TIM2>>>> = Mutex::new(RefCell::new(None));
 
 /// Writes data to a serial port on the host PC via USB
 static WRITER: UsbWriter = UsbWriter::new();
@@ -68,19 +39,18 @@ static WRITER: UsbWriter = UsbWriter::new();
 /// Used to signal, if there's a panic.
 static mut LED: Option<PB2<Output<PushPull>>> = None;
 
-
 #[entry]
 fn main() -> ! {
     let cp = pac::CorePeripherals::take().unwrap();
     let dp = pac::Peripherals::take().unwrap();
 
-    let mut scb    = cp.SCB;
-    let mut rcc    = dp.RCC.freeze(rcc::Config::hsi16());
-    let mut pwr    = PWR::new(dp.PWR, &mut rcc);
+    let mut scb = cp.SCB;
+    let mut rcc = dp.RCC.freeze(rcc::Config::hsi16());
+    let mut pwr = PWR::new(dp.PWR, &mut rcc);
     let mut syscfg = SYSCFG::new(dp.SYSCFG_COMP, &mut rcc);
-    let     usb    = dp.USB;
-    let     gpioa  = dp.GPIOA.split(&mut rcc);
-    let     gpiob  = dp.GPIOB.split(&mut rcc);
+    let usb = dp.USB;
+    let gpioa = dp.GPIOA.split(&mut rcc);
+    let gpiob = dp.GPIOB.split(&mut rcc);
 
     // Configure the timer run regularly and enable interrupts
     let mut timer = dp.TIM2.timer(5.khz(), &mut rcc);
@@ -103,12 +73,11 @@ fn main() -> ! {
 
     // `UsbWriter` requires the USB bus to have a static lifetime. We're using
     // the `singleton` macro from `cortex-m` here to achieve this.
-    let bus =
-        singleton!(
-            : UsbBusAllocator<UsbBusType> =
-                UsbBus::new(usb, (usb_dm, usb_dp))
-        )
-        .unwrap(); // never panics, as `main` is only called once
+    let bus = singleton!(
+        : UsbBusAllocator<UsbBusType> =
+            UsbBus::new(usb, (usb_dm, usb_dp))
+    )
+    .unwrap(); // never panics, as `main` is only called once
 
     // Initialize the USB serial port
     let serial = SerialPort::new(bus);
@@ -158,7 +127,6 @@ fn main() -> ! {
     }
 }
 
-
 /// The interrupt handler that regularly updates the USB connection
 ///
 /// Please note that this is deliberately not a handler for the USB interrupt. I
@@ -169,7 +137,7 @@ fn TIM2() {
     // Reset the timer interrupt. Otherwise it'll immediately refire after we
     // leave this handler.
     cortex_m::interrupt::free(|cs| {
-        let mut timer  = TIMER.borrow(cs).borrow_mut();
+        let mut timer = TIMER.borrow(cs).borrow_mut();
 
         if let Some(ref mut timer) = *timer {
             timer.clear_irq();
@@ -185,7 +153,6 @@ fn TIM2() {
         }
     }
 }
-
 
 /// Encapsulates the a USB connection and handles writing to it.
 ///
@@ -221,23 +188,19 @@ impl UsbWriter {
     /// use it, by calling [`UsbWriter::init`].
     pub const fn new() -> Self {
         Self {
-            usb:    Mutex::new(RefCell::new(None)),
+            usb: Mutex::new(RefCell::new(None)),
             buffer: Mutex::new(RefCell::new(Buffer::new())),
         }
     }
 
     /// Initialize this instance of `UsbWriter`
-    pub fn init(&self,
+    pub fn init(
+        &self,
         serial: SerialPort<'static, UsbBusType>,
         device: UsbDevice<'static, UsbBusType>,
     ) {
         cortex_m::interrupt::free(|cs| {
-            *self.usb.borrow(cs).borrow_mut() = Some(
-                Usb {
-                    serial,
-                    device,
-                }
-            )
+            *self.usb.borrow(cs).borrow_mut() = Some(Usb { serial, device })
         });
     }
 
@@ -263,7 +226,7 @@ impl UsbWriter {
     /// timer interrupt.
     pub fn update(&self) -> Result<(), UsbError> {
         cortex_m::interrupt::free(|cs| {
-            let mut usb    = self.usb.borrow(cs).borrow_mut();
+            let mut usb = self.usb.borrow(cs).borrow_mut();
             let mut buffer = self.buffer.borrow(cs).borrow_mut();
 
             if let Some(ref mut usb) = *usb {
@@ -273,7 +236,7 @@ impl UsbWriter {
 
                 match buffer.read(|data| usb.serial.write(data)) {
                     Ok(_) | Err(UsbError::WouldBlock) => return Ok(()),
-                    Err(error) =>                        return Err(error),
+                    Err(error) => return Err(error),
                 }
             }
 
@@ -311,9 +274,9 @@ impl UsbWriter {
             }
 
             let start = buffer.last;
-            let end   = buffer.last + data.len();
+            let end = buffer.last + data.len();
 
-            buffer.data[start .. end].copy_from_slice(data);
+            buffer.data[start..end].copy_from_slice(data);
             buffer.last += data.len();
 
             Ok(())
@@ -361,10 +324,8 @@ impl fmt::Write for &'_ UsbWriter {
     }
 }
 
-
 #[derive(Debug)]
 pub struct BufferTooSmallError;
-
 
 /// Encapsulates the USB connection
 struct Usb {
@@ -374,7 +335,6 @@ struct Usb {
     /// The USB device
     device: UsbDevice<'static, UsbBusType>,
 }
-
 
 /// The write buffer of `UsbWriter`
 ///
@@ -425,9 +385,9 @@ impl Buffer {
     /// Create an empty buffer
     const fn new() -> Self {
         Self {
-            data:  [0; 64],
+            data: [0; 64],
             first: 0,
-            last:  0,
+            last: 0,
         }
     }
 
@@ -437,7 +397,8 @@ impl Buffer {
     /// the buffer. Expects the closure to return how many bytes were taken from
     /// the buffer, and removes that many bytes after the closure returns.
     fn read<F, Error>(&mut self, f: F) -> Result<usize, Error>
-        where F: FnOnce(&[u8]) -> Result<usize, Error>
+    where
+        F: FnOnce(&[u8]) -> Result<usize, Error>,
     {
         // Call closure, passing it all valid data in the buffer.
         let result = f(&self.data[self.first..self.last]);
@@ -458,7 +419,7 @@ impl Buffer {
             // If the buffer is empty, reset it.
             if self.first >= self.last {
                 self.first = 0;
-                self.last  = 0;
+                self.last = 0;
             }
         }
 
