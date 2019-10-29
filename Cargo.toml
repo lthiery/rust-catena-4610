@@ -5,23 +5,21 @@ authors = ["Hanno Braun <hanno@braun-embedded.com>"]
 edition = "2018"
 
 [dependencies]
-#cmwx1zzabz = { git = "ssh://git@github.com/lthiery/cmwx1zzabz-rs.git", branch = "master"}
-cmwx1zzabz = { path = "../cmwx1zzabz-rs"}
+cmwx1zzabz = { git = "https://github.com/lthiery/cmwx1zzabz-rs.git", branch = "master"}
 
 [dependencies.stm32l0xx-hal]
 git                     = "https://github.com/lthiery/stm32l0xx-hal.git"
 features                = ["stm32l0x2","rt"]
-branch                  = "enable-spi2"
-
+branch                  = "lthiery/rng-pr"
 
 [dev-dependencies]
 cortex-m    = "0.6.1"
 cortex-m-rt = "0.6.10"
-longfi-device = { git = "ssh://git@github.com/helium/longfi-device-rs.git", branch = "lthiery/example-with-no-BSC"}
 nb          = "0.1.2"
 panic-halt  = "0.2.0"
 usb-device  = "0.2.3"
 usbd-serial = "0.1.0"
+longfi-device = { git = "ssh://git@github.com/helium/longfi-device-rs.git", tag = "0.1.0"}
 
 [dev-dependencies.cortex-m-rtfm]
 git = "https://github.com/rtfm-rs/cortex-m-rtfm.git"
@@ -30,6 +28,9 @@ rev = "3830638"
 [dev-dependencies.stm32-usbd]
 version  = "0.4.0"
 features = ["stm32l0x2xx"]
+
+[profile.dev]
+opt-level = "s"
 
 [profile.release]
 incremental   = false

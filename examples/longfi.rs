@@ -17,12 +17,7 @@ use longfi_device::{ClientEvent, Config, LongFi, RadioType, RfEvent};
 use core::fmt::Write;
 use catena_4610;
 
-
 static mut PRESHARED_KEY: [u8; 16] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
-
-pub extern "C" fn get_preshared_key() -> *mut u8 {
-    unsafe { &mut PRESHARED_KEY[0] as *mut u8 }
-}
 
 #[app(device = stm32l0xx_hal::pac, peripherals = true)]
 const APP: () = {
@@ -64,10 +59,12 @@ const APP: () = {
         write!(tx, "LongFi Device Test\r\n").unwrap();
 
         let mut exti = device.EXTI;
+        let rng = Rng::new(device.RNG, &mut rcc, &mut syscfg, device.CRS);
         let radio_irq = catena_4610::initialize_radio_irq(gpiob.pb4, &mut syscfg, &mut exti);
 
         *BINDINGS = Some(catena_4610::LongFiBindings::new(
             device.SPI1,
+            rng,
             &mut rcc,
             gpiob.pb3,
             gpioa.pa6,
@@ -90,7 +87,7 @@ const APP: () = {
         let mut longfi_radio;
         if let Some(bindings) = BINDINGS {
             longfi_radio =
-                unsafe { LongFi::new(RadioType::Sx1276, &mut bindings.bindings, rf_config, Some(get_preshared_key)).unwrap() };
+                unsafe { LongFi::new(RadioType::Sx1276, &mut bindings.bindings, rf_config, &PRESHARED_KEY).unwrap() };
         } else {
             panic!("No bindings exist");
         }
