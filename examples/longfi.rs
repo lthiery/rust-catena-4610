@@ -8,6 +8,7 @@ extern crate nb;
 extern crate panic_halt;
 
 use hal::{gpio::*, pac, prelude::*, rcc, serial, syscfg};
+use hal::rng::Rng;
 use rtfm::{app, Exclusive};
 use stm32l0xx_hal as hal;
 
@@ -59,13 +60,13 @@ const APP: () = {
         write!(tx, "LongFi Device Test\r\n").unwrap();
 
         let mut exti = device.EXTI;
-        let rng = Rng::new(device.RNG, &mut rcc, &mut syscfg, device.CRS);
+        let mut rng = Rng::new(device.RNG, &mut rcc, &mut syscfg, device.CRS);
         let radio_irq = catena_4610::initialize_radio_irq(gpiob.pb4, &mut syscfg, &mut exti);
 
         *BINDINGS = Some(catena_4610::LongFiBindings::new(
             device.SPI1,
-            rng,
             &mut rcc,
+            rng,
             gpiob.pb3,
             gpioa.pa6,
             gpioa.pa7,
