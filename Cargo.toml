@@ -27,7 +27,8 @@ git = "https://github.com/rtfm-rs/cortex-m-rtfm.git"
 rev = "3830638"
 
 [dev-dependencies.stm32-usbd]
-version  = "0.4.0"
+git                    = "https://github.com/lthiery/stm32-usbd.git"
+branch  = "master"
 features = ["stm32l0x2xx"]
 
 [profile.dev]
