@@ -79,8 +79,8 @@ const APP: () = {
         ));
 
         let rf_config = Config {
-            oui: 1234,
-            device_id: 5678,
+            oui: 1,
+            device_id: 3,
             auth_mode: longfi_device::AuthMode::PresharedKey128,
         };
 
