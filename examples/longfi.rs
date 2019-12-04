@@ -9,11 +9,11 @@ extern crate panic_halt;
 
 use hal::{gpio::*, pac, prelude::*, rcc, serial, syscfg};
 use hal::rng::Rng;
-use rtfm::{app, Exclusive};
+use rtfm::app;
 use stm32l0xx_hal as hal;
 
 use longfi_device;
-use longfi_device::{ClientEvent, Config, LongFi, RadioType, RfEvent};
+use longfi_device::{ClientEvent, Config, LongFi, Radio, RfEvent};
 
 use catena_4610;
 use core::fmt::Write;
@@ -38,10 +38,10 @@ const APP: () = {
     fn init(ctx: init::Context) -> init::LateResources {
         static mut BINDINGS: Option<catena_4610::LongFiBindings> = None;
         let device = ctx.device;
-        let core = ctx.core;
 
         let mut rcc = device.RCC.freeze(rcc::Config::hsi16());
-        let mut syscfg = syscfg::SYSCFG::new(device.SYSCFG_COMP, &mut rcc);
+        let mut syscfg = syscfg::SYSCFG::new(device.SYSCFG, &mut rcc);
+        let hsi48 = rcc.enable_hsi48(&mut syscfg, device.CRS);
 
         let gpioa = device.GPIOA.split(&mut rcc);
         let gpiob = device.GPIOB.split(&mut rcc);
@@ -55,12 +55,12 @@ const APP: () = {
 
         // listen for incoming bytes which will trigger transmits
         serial.listen(serial::Event::Rxne);
-        let (mut tx, mut rx) = serial.split();
+        let (mut tx, rx) = serial.split();
 
         write!(tx, "LongFi Device Test\r\n").unwrap();
 
         let mut exti = device.EXTI;
-        let mut rng = Rng::new(device.RNG, &mut rcc, &mut syscfg, device.CRS);
+        let rng = Rng::new(device.RNG, &mut rcc, hsi48);
         let radio_irq = catena_4610::initialize_radio_irq(gpiob.pb4, &mut syscfg, &mut exti);
 
         *BINDINGS = Some(catena_4610::LongFiBindings::new(
@@ -88,7 +88,7 @@ const APP: () = {
         if let Some(bindings) = BINDINGS {
             longfi_radio = unsafe {
                 LongFi::new(
-                    RadioType::Sx1276,
+                    Radio::sx1276(),
                     &mut bindings.bindings,
                     rf_config,
                     &PRESHARED_KEY,
@@ -115,7 +115,7 @@ const APP: () = {
 
     #[task(capacity = 4, priority = 2, resources = [debug_uart, buffer, longfi])]
     fn radio_event(ctx: radio_event::Context, event: RfEvent) {
-        let mut longfi_radio = ctx.resources.longfi;
+        let longfi_radio = ctx.resources.longfi;
         let client_event = longfi_radio.handle_event(event);
 
         match client_event {
@@ -245,14 +245,14 @@ const APP: () = {
 
     #[task(binds = USART1, priority=1, resources = [uart_rx], spawn = [send_ping])]
     fn USART1(ctx: USART1::Context) {
-        let mut rx = ctx.resources.uart_rx;
+        let rx = ctx.resources.uart_rx;
         rx.read().unwrap();
         ctx.spawn.send_ping().unwrap();
     }
 
     #[task(binds = EXTI4_15, priority = 1, resources = [radio_irq, int], spawn = [radio_event])]
     fn EXTI4_15(ctx: EXTI4_15::Context) {
-        ctx.resources.int.clear_irq(ctx.resources.radio_irq.i);
+        ctx.resources.int.clear_irq(ctx.resources.radio_irq.pin_number());
         ctx.spawn.radio_event(RfEvent::DIO0).unwrap();
     }
 
